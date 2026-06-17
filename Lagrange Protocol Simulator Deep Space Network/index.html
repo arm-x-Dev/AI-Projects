@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galactic Data Link: Lagrange Simulator</title>
+    <style>
+        /* --- CORE THEME --- */
+        :root {
+            --bg-deep: #050510;
+            --panel-bg: rgba(20, 25, 40, 0.9);
+            --earth: #00a8ff;   /* Blue */
+            --mars: #ff4757;    /* Red */
+            --success: #2ecc71; /* Green */
+            --packet: #ffa502;  /* Orange */
+            --text-main: #e0e6ed;
+            --text-dim: #94a3b8;
+        }
+
+        body {
+            margin: 0;
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            font-family: 'Segoe UI', 'Roboto', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+        }
+
+        /* --- LAYOUT --- */
+        .container {
+            width: 90%;
+            max-width: 1000px;
+            margin: 40px 0 100px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        h1 { margin: 0; font-weight: 300; letter-spacing: 2px; text-transform: uppercase; color: var(--earth); }
+        h3 { margin: 0; font-size: 1.1rem; color: var(--text-dim); font-weight: 400; }
+
+        /* --- CARDS (The Stations) --- */
+        .station-card {
+            background: var(--panel-bg);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+        
+        .station-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding-bottom: 15px;
+        }
+
+        .badge {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* --- INPUTS & CONTROLS --- */
+        .control-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .input-box {
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        label { display: block; color: var(--text-dim); font-size: 0.8rem; margin-bottom: 8px; }
+
+        input[type="text"], input[type="number"] {
+            background: #0f121e;
+            border: 1px solid #333;
+            color: #fff;
+            padding: 10px;
+            width: 100%;
+            box-sizing: border-box;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 1rem;
+            transition: border 0.3s;
+        }
+        input:focus { border-color: var(--earth); outline: none; }
+
+        /* --- BUTTONS --- */
+        .action-btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn-earth { background: linear-gradient(135deg, #00a8ff, #0077b6); color: white; }
+        .btn-mars { background: linear-gradient(135deg, #ff4757, #c0392b); color: white; }
+        .action-btn:disabled { background: #333; color: #666; cursor: not-allowed; }
+        .action-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+
+        /* --- VISUALIZATION (CANVAS) --- */
+        canvas {
+            width: 100%;
+            height: 250px;
+            background: radial-gradient(circle at 50% 50%, #15192b 0%, #0b0d17 100%);
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        /* --- MISSION CONTROL LOG --- */
+        .mission-log {
+            font-family: 'Consolas', monospace;
+            background: #000;
+            border-left: 4px solid var(--earth);
+            padding: 15px;
+            margin-top: 15px;
+            font-size: 0.9rem;
+            color: var(--earth);
+            height: 60px;
+            display: flex;
+            align-items: center;
+        }
+
+        /* --- SPACE CHANNEL (Middle Section) --- */
+        .space-channel {
+            position: relative;
+            height: 180px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-left: 2px dashed rgba(255,255,255,0.1);
+            border-right: 2px dashed rgba(255,255,255,0.1);
+            margin: 0 40px;
+        }
+
+        .noise-panel {
+            z-index: 10;
+            background: var(--bg-deep);
+            padding: 10px 20px;
+            border: 1px solid var(--mars);
+            border-radius: 30px;
+            text-align: center;
+            box-shadow: 0 0 15px rgba(255, 71, 87, 0.2);
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div style="text-align: center;">
+            <h1>Deep Space Network</h1>
+            <h3>Lagrange Protocol Simulator</h3>
+        </div>
+
+        <div class="station-card" style="border-top: 4px solid var(--earth);">
+            <div class="station-header">
+                <div>
+                    <h2 style="margin:0; color:var(--earth)">EARTH STATION</h2>
+                    <div style="font-size:0.8rem; color:var(--text-dim)">Data Encoder & Transmitter</div>
+                </div>
+                <span class="badge">STEP 1</span>
+            </div>
+
+            <div class="control-grid">
+                <div class="input-box">
+                    <label>1. SECRET MESSAGE (TEXT)</label>
+                    <input type="text" id="msgInput" value="HELLO" maxlength="6" placeholder="Type here...">
+                </div>
+                <div class="input-box">
+                    <label>2. WAVEFORM SHAPE (POLYNOMIAL)</label>
+                    <div style="display:flex; gap:10px;">
+                        <input type="number" id="coeffA" value="2" title="Curve (a)">
+                        <input type="number" id="coeffB" value="-4" title="Slope (b)">
+                    </div>
+                </div>
+            </div>
+
+            <canvas id="earthCanvas"></canvas>
+            
+            <div class="mission-log" id="earthLog">
+                Waiting for input...
+            </div>
+
+            <button class="action-btn btn-earth" onclick="app.generateAndGraph()">Generate Data Stream</button>
+        </div>
+
+
+        <div class="space-channel">
+            <canvas id="spaceCanvas" style="position: absolute; top:0; left:0; height:100%; pointer-events: none; background: transparent; border: none;"></canvas>
+            
+            <div class="noise-panel">
+                <label style="color:var(--mars); font-weight:bold;">SOLAR INTERFERENCE LEVEL</label>
+                <input type="range" id="noiseSlider" min="0" max="80" value="30" oninput="app.updateNoiseUI(this.value)">
+                <div id="noiseText" style="color:white; font-size:0.9rem; margin-top:5px;">30% Packet Loss</div>
+            </div>
+
+            <button class="action-btn btn-mars" id="btnTransmit" onclick="app.transmit()" disabled style="width: 200px; margin-top: 20px; z-index: 10;">
+                INITIATE LAUNCH
+            </button>
+        </div>
+
+
+        <div class="station-card" style="border-top: 4px solid var(--mars);">
+            <div class="station-header">
+                <div>
+                    <h2 style="margin:0; color:var(--mars)">MARS ROVER</h2>
+                    <div style="font-size:0.8rem; color:var(--text-dim)">Lagrange Reconstruction Unit</div>
+                </div>
+                <span class="badge">STEP 3</span>
+            </div>
+
+            <canvas id="marsCanvas"></canvas>
+
+            <div class="mission-log" id="marsLog" style="border-color: var(--mars); color: var(--mars);">
+                Status: Offline. Waiting for transmission.
+            </div>
+
+            <button class="action-btn btn-earth" id="btnReconstruct" onclick="app.reconstruct()" disabled>
+                Attempt Data Reconstruction
+            </button>
+        </div>
+
+    </div>
+
+<script>
+/**
+ * LAGRANGE SIMULATOR ENGINE
+ * Features: Physics-based animation, Real-time text encoding, Step-by-step narration.
+ */
+class App {
+    constructor() {
+        // Canvases
+        this.cEarth = document.getElementById('earthCanvas');
+        this.cSpace = document.getElementById('spaceCanvas');
+        this.cMars = document.getElementById('marsCanvas');
+        
+        this.ctxEarth = this.cEarth.getContext('2d');
+        this.ctxSpace = this.cSpace.getContext('2d');
+        this.ctxMars = this.cMars.getContext('2d');
+
+        // Fix Resolution (Retina screens)
+        this.fixCanvas(this.cEarth);
+        this.fixCanvas(this.cSpace);
+        this.fixCanvas(this.cMars);
+
+        // Data State
+        this.secretValue = 0; // The Y-Intercept
+        this.coeffs = { a: 2, b: -4 };
+        this.packets = []; // {x, y} (Math coordinates)
+        this.receivedPackets = [];
+        
+        // Stars Animation
+        this.stars = [];
+        this.initStars();
+        this.animateSpaceBg();
+    }
+
+    fixCanvas(c) {
+        c.width = c.offsetWidth;
+        c.height = c.offsetHeight;
+    }
+
+    // --- NARRATION & UI HELPERS ---
+    log(station, text, type="normal") {
+        const el = document.getElementById(station + 'Log');
+        el.innerText = "> " + text;
+        el.style.color = type === "error" ? "#ff4757" : (type === "success" ? "#2ecc71" : "");
+    }
+
+    updateNoiseUI(val) {
+        document.getElementById('noiseText').innerText = val + "% Packet Loss";
+    }
+
+    // --- STEP 1: GENERATE ---
+    generateAndGraph() {
+        const text = document.getElementById('msgInput').value || "HELLO";
+        this.coeffs.a = parseFloat(document.getElementById('coeffA').value);
+        this.coeffs.b = parseFloat(document.getElementById('coeffB').value);
+
+        // 1. Text to Math Conversion
+        let sum = 0;
+        for(let i=0; i<text.length; i++) sum += text.charCodeAt(i);
+        this.secretValue = sum;
+
+        this.log('earth', `Encoded "${text}" into integer [${sum}]. Generating Polynomial...`);
+
+        // 2. Generate 10 Packets
+        this.packets = [];
+        // Generate points from x=-5 to x=5
+        for(let i=0; i<10; i++) {
+            let x = -5 + i; 
+            let y = (this.coeffs.a * x * x) + (this.coeffs.b * x) + this.secretValue;
+            this.packets.push({ x, y });
+        }
+
+        // 3. Animate Graph Drawing (Earth)
+        this.animateCurve(this.ctxEarth, this.packets, '#00a8ff', () => {
+             this.drawPackets(this.ctxEarth, this.packets, '#ffa502');
+             this.log('earth', `Graph complete. 10 Data Packets ready for launch.`, 'success');
+             document.getElementById('btnTransmit').disabled = false;
+        });
+    }
+
+    // --- STEP 2: TRANSMIT ---
+    transmit() {
+        this.log('earth', 'Launching packets into space...');
+        document.getElementById('btnTransmit').disabled = true;
+
+        const noise = parseInt(document.getElementById('noiseSlider').value) / 100;
+        
+        // Prepare Particles
+        let particles = this.packets.map(p => ({
+            ...p,
+            survived: Math.random() > noise,
+            xPos: 0, // 0 to Width
+            yPos: 0  // 0 to Height
+        }));
+
+        const startY = -20;
+        const endY = this.cSpace.height + 20;
+        let startTime = null;
+
+        const animateFlight = (t) => {
+            if(!startTime) startTime = t;
+            let progress = (t - startTime) / 2500; // 2.5 seconds duration (Slower = better explanation)
+
+            this.ctxSpace.clearRect(0,0, this.cSpace.width, this.cSpace.height);
+            this.drawStars(this.ctxSpace); // Keep stars moving
+
+            if(progress >= 1) {
+                this.finalizeArrival(particles);
+                return;
+            }
+
+            // Easing function for smooth start/stop
+            let ease = progress < 0.5 ? 4 * progress * progress * progress : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+            particles.forEach((p, index) => {
+                if(!p.survived && progress > 0.6) return; // Die mid-flight
+
+                // Calculate visual position
+                // Spread x based on packet index to see them clearly
+                let spreadX = (this.cSpace.width / 12) * (index + 1.5);
+                let currentY = startY + (endY - startY) * ease;
+
+                // Draw
+                this.ctxSpace.beginPath();
+                this.ctxSpace.arc(spreadX, currentY, 6, 0, Math.PI*2);
+                
+                // Color Logic
+                if(!p.survived && progress > 0.4) {
+                    // Exploding Red
+                    this.ctxSpace.fillStyle = `rgba(255, 71, 87, ${1 - (progress-0.4)*3})`;
+                    this.ctxSpace.shadowBlur = 20;
+                    this.ctxSpace.shadowColor = 'red';
+                } else {
+                    // Healthy Orange
+                    this.ctxSpace.fillStyle = '#ffa502';
+                    this.ctxSpace.shadowBlur = 10;
+                    this.ctxSpace.shadowColor = 'orange';
+                }
+                this.ctxSpace.fill();
+                this.ctxSpace.shadowBlur = 0;
+            });
+
+            requestAnimationFrame(animateFlight);
+        };
+        requestAnimationFrame(animateFlight);
+    }
+
+    finalizeArrival(particles) {
+        this.receivedPackets = particles.filter(p => p.survived);
+        const count = this.receivedPackets.length;
+        
+        this.ctxSpace.clearRect(0,0,this.cSpace.width, this.cSpace.height); // Clear flight path
+
+        // Draw received dots on Mars
+        this.drawPackets(this.ctxMars, this.receivedPackets, '#2ecc71');
+
+        if(count < 3) {
+            this.log('mars', `CRITICAL: Only ${count} packets arrived. Need 3 to reconstruct.`, 'error');
+            document.getElementById('btnReconstruct').innerText = "Data Corrupted";
+            document.getElementById('btnReconstruct').disabled = true;
+        } else {
+            this.log('mars', `Received ${count} packets. Sufficient data for Lagrange Algo.`, 'success');
+            document.getElementById('btnReconstruct').innerText = "Attempt Data Reconstruction";
+            document.getElementById('btnReconstruct').disabled = false;
+        }
+    }
+
+    // --- STEP 3: RECONSTRUCT ---
+    reconstruct() {
+        this.log('mars', 'Executing Lagrange Interpolation Formula...');
+        
+        // We will animate the "Tracing" of the curve
+        // Lagrange Formula: L(x) = sum (y_j * l_j(x))
+        // We use the first 3 received points to solve the quadratic
+        const subset = this.receivedPackets.slice(0, 3);
+
+        const solveY = (x) => {
+            let result = 0;
+            for(let j=0; j<subset.length; j++) {
+                let term = subset[j].y;
+                for(let m=0; m<subset.length; m++) {
+                    if(j !== m) {
+                        term = term * (x - subset[m].x) / (subset[j].x - subset[m].x);
+                    }
+                }
+                result += term;
+            }
+            return result;
+        };
+
+        // Animation: Trace from left to right
+        let currentPx = 0;
+        const totalPx = this.cMars.width;
+        
+        this.ctxMars.beginPath();
+        this.ctxMars.strokeStyle = '#2ecc71';
+        this.ctxMars.lineWidth = 3;
+        this.ctxMars.shadowColor = '#2ecc71';
+        this.ctxMars.shadowBlur = 10;
+
+        const trace = () => {
+            // Draw 15 pixels per frame
+            for(let k=0; k<15; k++) {
+                if(currentPx > totalPx) break;
+
+                // 1. Pixel X -> Math X
+                let mathX = this.screenToMathX(currentPx, this.cMars);
+                // 2. Solve Math Y using Lagrange
+                let mathY = solveY(mathX);
+                // 3. Math Y -> Pixel Y
+                let screen = this.mapToScreen(mathX, mathY, this.cMars);
+
+                if(currentPx === 0) this.ctxMars.moveTo(screen.x, screen.y);
+                else this.ctxMars.lineTo(screen.x, screen.y);
+                
+                currentPx++;
+            }
+            this.ctxMars.stroke();
+
+            if(currentPx <= totalPx) {
+                requestAnimationFrame(trace);
+            } else {
+                // Done
+                let decoded = Math.round(solveY(0)); // Evaluate at x=0
+                if(decoded === this.secretValue) {
+                    this.log('mars', `SUCCESS: Curve traced to Intercept ${decoded}. Message Validated!`, 'success');
+                } else {
+                    this.log('mars', `Math Error. Decoded ${decoded}, expected ${this.secretValue}.`, 'error');
+                }
+            }
+        };
+        trace();
+    }
+
+
+    // --- GRAPHICS HELPERS ---
+    
+    // Auto-scale math coordinates to fit canvas
+    mapToScreen(x, y, canvas) {
+        // We know X range is -5 to 5 (width 10)
+        // We center Y around the secretValue
+        const scaleX = canvas.width / 12; // slightly wider than 10
+        const scaleY = canvas.height / 200; // assume range of 200 units
+
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+
+        return {
+            x: centerX + (x * scaleX),
+            y: centerY - ((y - this.secretValue) * scaleY) // Flip Y for screen
+        };
+    }
+
+    screenToMathX(px, canvas) {
+        const scaleX = canvas.width / 12;
+        const centerX = canvas.width / 2;
+        return (px - centerX) / scaleX;
+    }
+
+    drawPackets(ctx, list, color) {
+        list.forEach(p => {
+            let pos = this.mapToScreen(p.x, p.y, ctx.canvas);
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, 6, 0, Math.PI*2);
+            ctx.fill();
+        });
+    }
+
+    animateCurve(ctx, dataPoints, color, onComplete) {
+        ctx.clearRect(0,0, ctx.canvas.width, ctx.canvas.height);
+        this.drawGrid(ctx);
+
+        let currentX = 0;
+        const totalW = ctx.canvas.width;
+        
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+
+        const drawFrame = () => {
+            for(let k=0; k<20; k++) { // Speed
+                if(currentX > totalW) break;
+                
+                let mx = this.screenToMathX(currentX, ctx.canvas);
+                // Recalculate true curve Y (using known coeffs)
+                let my = (this.coeffs.a * mx * mx) + (this.coeffs.b * mx) + this.secretValue;
+                let scr = this.mapToScreen(mx, my, ctx.canvas);
+
+                if(currentX===0) ctx.moveTo(scr.x, scr.y);
+                else ctx.lineTo(scr.x, scr.y);
+                currentX++;
+            }
+            ctx.stroke();
+
+            if(currentX <= totalW) requestAnimationFrame(drawFrame);
+            else if(onComplete) onComplete();
+        }
+        drawFrame();
+    }
+
+    drawGrid(ctx) {
+        ctx.strokeStyle = "rgba(255,255,255,0.05)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        // Simple Grid
+        for(let i=0; i<ctx.canvas.width; i+=40) { ctx.moveTo(i,0); ctx.lineTo(i, ctx.canvas.height); }
+        for(let i=0; i<ctx.canvas.height; i+=40) { ctx.moveTo(0,i); ctx.lineTo(ctx.canvas.width, i); }
+        ctx.stroke();
+    }
+
+    // --- STARFIELD (Space Background) ---
+    initStars() {
+        for(let i=0; i<50; i++) {
+            this.stars.push({
+                x: Math.random() * this.cSpace.width,
+                y: Math.random() * this.cSpace.height,
+                speed: 0.5 + Math.random() * 2,
+                size: Math.random() * 2
+            });
+        }
+    }
+
+    drawStars(ctx) {
+        ctx.fillStyle = "#fff";
+        this.stars.forEach(s => {
+            ctx.globalAlpha = Math.random() * 0.5 + 0.3;
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.size, 0, Math.PI*2);
+            ctx.fill();
+            
+            // Move star
+            s.y += s.speed; 
+            if(s.y > ctx.canvas.height) s.y = 0;
+        });
+        ctx.globalAlpha = 1.0;
+    }
+
+    animateSpaceBg() {
+        // Only clear if not transmitting (transmitting handles its own clear)
+        if(!document.getElementById('btnTransmit').disabled) {
+            this.ctxSpace.clearRect(0,0, this.cSpace.width, this.cSpace.height);
+            this.drawStars(this.ctxSpace);
+        }
+        requestAnimationFrame(() => this.animateSpaceBg());
+    }
+}
+
+// Start App
+const app = new App();
+
+</script>
+</body>
+</html>
+<!-- sync -->

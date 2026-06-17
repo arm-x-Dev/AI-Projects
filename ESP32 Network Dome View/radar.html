@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>3D RF Propagation Grid & Signal Localization Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        body {
+            margin: 0;
+            background-color: #050300; /* Deep solar amber void */
+            color: #ffaa00;
+            font-family: 'Courier New', Courier, monospace;
+            overflow: hidden;
+        }
+        #ui-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            pointer-events: none;
+        }
+        button {
+            background: rgba(20, 10, 0, 0.85);
+            color: #ffaa00;
+            border: 2px solid #ff7700;
+            padding: 12px 24px;
+            font-size: 14px;
+            cursor: pointer;
+            font-family: inherit;
+            box-shadow: 0 0 15px rgba(255, 119, 0, 0.4);
+            text-transform: uppercase;
+            pointer-events: auto;
+            letter-spacing: 1px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            background: #ff7700;
+            color: #050200;
+            box-shadow: 0 0 30px #ffaa00;
+        }
+        #stats {
+            margin-top: 15px;
+            font-size: 12px;
+            line-height: 1.5;
+            text-shadow: 0 0 8px #ff5500;
+        }
+        /* Persistent Diagnostic Sidebar HUD */
+        #diagnostic-sidebar {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 320px;
+            background: rgba(15, 5, 0, 0.92);
+            border: 2px solid #ff5500;
+            box-shadow: 0 0 25px rgba(255, 85, 0, 0.3);
+            padding: 20px;
+            z-index: 100;
+            box-sizing: border-box;
+        }
+        .hud-header {
+            border-bottom: 2px dashed #ff5500;
+            padding-bottom: 8px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            font-weight: bold;
+            text-shadow: 0 0 5px #ff5500;
+            letter-spacing: 1px;
+        }
+        .data-row {
+            margin: 10px 0;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .data-val {
+            color: #ffffff;
+            text-shadow: 0 0 3px #ffffff;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui-container">
+        <button id="connectBtn">Initialize Base Station Link</button>
+        <div id="stats">LINK STATUS: RECEIVER DISCONNECTED<br>ACTIVE TRANSCEIVER SIGNALS: 0</div>
+    </div>
+
+    <div id="diagnostic-sidebar">
+        <div class="hud-header">// TELEMETRY CHANNEL DIAGNOSTICS</div>
+        <div id="hud-content">
+            <div style="color: #663300; font-style: italic;">Awaiting transceiver node selection...</div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. SCENE CONFIGURATION & INITIALIZATION ---
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x050200, 0.004); // Anechoic void fog attenuation
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 500000);
+        camera.position.set(0, 90, 150);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.maxPolarAngle = Math.PI / 2;
+        controls.maxDistance = 200000; 
+
+        // --- 2. STRUCTURAL EM ENVELOPE DESIGN ---
+        const domeGroup = new THREE.Group();
+        scene.add(domeGroup);
+
+        const domeRadius = 90;
+
+        // Ground Plane Radial Grid Mesh
+        const gridHelper = new THREE.GridHelper(240, 40, 0xff5500, 0x441100);
+        gridHelper.material.opacity = 0.35;
+        gridHelper.material.transparent = true;
+        scene.add(gridHelper);
+
+        // Ground Horizon Boundary Ring (Equatorial Platform Cross-section)
+        const ringGeo = new THREE.RingGeometry(domeRadius - 0.5, domeRadius + 0.5, 64);
+        const ringMat = new THREE.MeshBasicMaterial({ color: 0xff4400, side: THREE.DoubleSide, transparent: true, opacity: 0.4 });
+        const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+        ringMesh.rotation.x = Math.PI / 2;
+        domeGroup.add(ringMesh);
+
+        // Spherical Propagation Envelope Matrix
+        const sphereGeo = new THREE.SphereGeometry(domeRadius, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2);
+        const edges = new THREE.EdgesGeometry(sphereGeo);
+        edges.computeBoundingSphere(); // Zoom stability matrix protection
+        edges.computeBoundingBox();
+
+        const domeMat = new THREE.LineBasicMaterial({
+            color: 0xffaa00,
+            transparent: true,
+            opacity: 0.25,
+            linewidth: 2
+        });
+        const propagationEnvelope = new THREE.LineSegments(edges, domeMat);
+        domeGroup.add(propagationEnvelope);
+
+        // Core Origin Transceiver Node (Physical ESP32 Receiver Node Coordinates)
+        const coreGeo = new THREE.IcosahedronGeometry(4, 1);
+        const coreMat = new THREE.MeshBasicMaterial({ color: 0xfffb00, wireframe: true });
+        const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+        scene.add(coreMesh);
+
+        // --- 3. TELEMETRY ARRAYS & INTERACTION REGISTER ---
+        let networkNodes = new THREE.Group();
+        scene.add(networkNodes);
+        let targetableMeshes = [];
+
+        // Direct Path Vector Alignment Indicator Laser
+        const laserLineGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,0)]);
+        const laserLineMat = new THREE.LineBasicMaterial({ color: 0xfffb00, linewidth: 3 });
+        const targetLaser = new THREE.Line(laserLineGeo, laserLineMat);
+        scene.add(targetLaser);
+
+        let selectedNodeUUID = null;
+
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        const connectBtn = document.getElementById('connectBtn');
+        const statsDiv = document.getElementById('stats');
+        const hudContent = document.getElementById('hud-content');
+
+        function mapValue(val, inMin, inMax, outMin, outMax) {
+            return outMin + (outMax - outMin) * (val - inMin) / (inMax - inMin);
+        }
+
+        // Implementation of Log-Distance Path Loss Model for free-space distance modeling
+        function calculateMeters(rssi) {
+            const measuredPower = -30; // Calibrated RSSI reference parameter at 1 meter
+            const nEnv = 2.7; // Path loss exponent modeling typical indoor environment scattering barriers
+            return Math.pow(10, (measuredPower - rssi) / (10 * nEnv)).toFixed(1);
+        }
+
+        // Frequency Multi-spectral Heatmap Gradient Parser
+        function getSignalColor(rssi) {
+            // High SNR Range Boundary Parameter (-30 to -55 dBm) -> Pure Sun White / Bright Yellow
+            if (rssi >= -55) return new THREE.Color(0xfffb00);
+            // Mid-tier Path Attenuation Zone (-56 to -75 dBm) -> Deep Burned Orange
+            if (rssi >= -75) return new THREE.Color(0xff5500);
+            // High Path Attenuation / Near Noise Floor Threshold (-76 to -100 dBm) -> Cosmic Red-Purple
+            return new THREE.Color(0x990033);
+        }
+
+        // --- 4. REAL-TIME MULTIPLEX DATA PIPE STREAM RUNTIME ---
+        function update3DScene(networksArray) {
+            let previouslySelectedSSID = null;
+            let matchingNewNode = null;
+
+            targetableMeshes.forEach(m => {
+                if(m.uuid === selectedNodeUUID) previouslySelectedSSID = m.userData.ssid;
+            });
+
+            while(networkNodes.children.length > 0){
+                const obj = networkNodes.children[0];
+                if (obj.geometry) obj.geometry.dispose();
+                if (obj.material) obj.material.dispose();
+                networkNodes.remove(obj);
+            }
+            targetableMeshes = [];
+
+            statsDiv.innerHTML = `LINK STATUS: DYNAMIC STREAM ACTIVE<br>ACTIVE TRANSCEIVER SIGNALS: ${networksArray.length}`;
+
+            networksArray.forEach((net, index) => {
+                // Spatial map displacement relative to path attenuation profiles
+                let radius = mapValue(net.rssi, -30, -100, 12, domeRadius - 4);
+                radius = Math.max(12, Math.min(domeRadius - 4, radius));
+
+                let phi = index * (Math.PI * 2 / networksArray.length);
+                let theta = mapValue(index % 4, 0, 4, 0.2, Math.PI / 2.2);
+
+                let x = radius * Math.sin(theta) * Math.cos(phi);
+                let y = radius * Math.cos(theta);
+                let z = radius * Math.sin(theta) * Math.sin(phi);
+
+                const targetColor = getSignalColor(net.rssi);
+                const nodeGeo = new THREE.SphereGeometry(2.5, 12, 12);
+                const nodeMat = new THREE.MeshBasicMaterial({ color: targetColor });
+                const nodeMesh = new THREE.Mesh(nodeGeo, nodeMat);
+                nodeMesh.position.set(x, y, z);
+
+                nodeMesh.geometry.computeBoundingSphere();
+
+                nodeMesh.userData = {
+                    ssid: net.ssid || 'BROADCASTING WITH MASKED SSID',
+                    rssi: net.rssi,
+                    distance: calculateMeters(net.rssi),
+                    colorHex: '#' + targetColor.getHexString()
+                };
+
+                networkNodes.add(nodeMesh);
+                targetableMeshes.push(nodeMesh);
+
+                if (previouslySelectedSSID && net.ssid === previouslySelectedSSID) {
+                    matchingNewNode = nodeMesh;
+                }
+
+                // Vertical Orthogonal Drop Line to Floor Ground Plane Anchor
+                const lineGeo = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(x, y, z),
+                    new THREE.Vector3(x, 0, z)
+                ]);
+                const lineMat = new THREE.LineBasicMaterial({ color: 0xff5500, transparent: true, opacity: 0.2 });
+                const tacticalLine = new THREE.Line(lineGeo, lineMat);
+                networkNodes.add(tacticalLine);
+            });
+
+            if (matchingNewNode) {
+                selectedNodeUUID = matchingNewNode.uuid;
+                lockHUDDiagnostics(matchingNewNode);
+            } else if (previouslySelectedSSID) {
+                selectedNodeUUID = null;
+                targetLaser.visible = false;
+                hudContent.innerHTML = `<div style="color: #ff3300;">Target dropped out of range window threshold parameters.</div>`;
+            }
+        }
+
+        // --- 5. INTERACTIVE CHANNEL MATRIX SELECTION CONTROLS ---
+        window.addEventListener('click', (event) => {
+            if (event.target.tagName === 'BUTTON') return;
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(targetableMeshes);
+
+            if (intersects.length > 0) {
+                const target = intersects[0].object;
+                selectedNodeUUID = target.uuid;
+                lockHUDDiagnostics(target);
+            }
+        });
+
+        function lockHUDDiagnostics(meshObject) {
+            const data = meshObject.userData;
+
+            targetLaser.geometry.setFromPoints([
+                new THREE.Vector3(0, 0, 0),
+                meshObject.position
+            ]);
+            targetLaser.visible = true;
+
+            hudContent.innerHTML = `
+                <div class="data-row"><span>BSSID_LABEL:</span><span class="data-val" style="color:${data.colorHex}">${data.ssid}</span></div>
+                <div class="data-row"><span>FILTERED_RSSI:</span><span class="data-val">${data.rssi} dBm</span></div>
+                <div class="data-row"><span>EST_PATH_DIST:</span><span class="data-val">${data.distance} METERS</span></div>
+                <div class="data-row"><span>PROPAGATION:</span><span class="data-val" style="color:${data.colorHex}">${data.rssi >= -65 ? 'HIGH SNR ZONE' : 'HIGH ATTENUATION'}</span></div>
+                <div class="data-row"><span>VECTOR_COORD_X:</span><span class="data-val">${meshObject.position.x.toFixed(1)}</span></div>
+                <div class="data-row"><span>VECTOR_COORD_Y:</span><span class="data-val">${meshObject.position.y.toFixed(1)}</span></div>
+                <div class="data-row"><span>VECTOR_COORD_Z:</span><span class="data-val">${meshObject.position.z.toFixed(1)}</span></div>
+            `;
+        }
+
+        // --- 6. WEBSERIAL BUS CHANNEL COUPLING ENGINE ---
+        connectBtn.addEventListener('click', async () => {
+            if (!("serial" in navigator)) {
+                alert("Web Serial API blocked. Please use an updated Chromium instance (Chrome / Edge).");
+                return;
+            }
+
+            try {
+                const port = await navigator.serial.requestPort();
+                await port.open({ baudRate: 115200 });
+                
+                connectBtn.innerText = "BUS LINK COUPLED";
+                connectBtn.style.borderColor = "#fffb00";
+                connectBtn.style.color = "#fffb00";
+                connectBtn.style.boxShadow = "0 0 30px #ffaa00";
+
+                const decoder = new TextDecoderStream();
+                port.readable.pipeTo(decoder.writable);
+                const reader = decoder.readable.getReader();
+
+                let buffer = "";
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    buffer += value;
+                    let lines = buffer.split("\n");
+                    buffer = lines.pop();
+
+                    for (let line of lines) {
+                        line = line.trim();
+                        if (line.startsWith("{") && line.endsWith("}")) {
+                            try {
+                                const data = JSON.parse(line);
+                                if (data.networks) {
+                                    update3DScene(data.networks);
+                                }
+                            } catch (e) {}
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Serial bus link coupling failure. Check port occupancy locks.");
+            }
+        });
+
+        // --- 7. FRAME RENDERING INTERPOLATION LOOP ---
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            domeGroup.rotation.y += 0.0003; // Radial frame sweeping movement simulation
+            coreMesh.rotation.x += 0.005;
+            coreMesh.rotation.y += 0.005;
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>
