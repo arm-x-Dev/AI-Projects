@@ -1,4 +1,4 @@
-# 🤖 Master AI & Technical Hobby Lab ⚡
+# Master AI & Technical Hobby Lab ⚡
 
 Welcome to my centralized digital sandbox—a dedicated hub for independent engineering experiments, mathematical simulations, hardware-to-software pipelines, and interactive 3D WebGL dashboards.
 
@@ -6,7 +6,7 @@ This repository serves as a playground for writing raw, zero-framework logic, pr
 
 ---
 
-## 🛠️ The Global Tech Stack
+## The Global Tech Stack
 
 [![Language: JavaScript](https://img.shields.io/badge/Language-JavaScript-yellow?style=for-the-badge&logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
 [![Firmware: C++](https://img.shields.io/badge/Firmware-C%2B%2B-blue?style=for-the-badge&logo=c%2B%2B&logoColor=white)](https://isocpp.org/)
@@ -17,16 +17,16 @@ This repository serves as a playground for writing raw, zero-framework logic, pr
 
 ---
 
-## 📁 Active Laboratory Modules
+## Active Laboratory Modules
 
 | Experiment Module | Description | Primary Tech Stack | Workspace Link |
 | :--- | :--- | :--- | :--- |
-| **🛰️ Lagrange Simulator** | A Deep Space Network telemetry simulation utilizing algebraic Lagrange Interpolation curves to reconstruct lost data packets vaporized by solar radiation in a noisy channel. | HTML5 Canvas, JavaScript, CSS3 | [Open Module](./Lagrange%20Protocol%20Simulator%20Deep%20Space%20Network/) |
-| **📡 ESP32 Network Dome** | An environmental RF probe converting an ESP32 into a wireless scanner that streams Kalman-smoothed RSSI telemetry into a high-glow 3D Three.js WebGL dome via Web Serial. | ESP32 (C++), Web Serial, Three.js | [Open Module](./ESP32%20Network%20Dome%20View/) |
+| **Lagrange Simulator** | A Deep Space Network telemetry simulation utilizing algebraic Lagrange Interpolation curves to reconstruct lost data packets vaporized by solar radiation in a noisy channel. | HTML5 Canvas, JavaScript, CSS3 | [Open Module](./Lagrange%20Protocol%20Simulator%20Deep%20Space%20Network/) |
+| **ESP32 Network Dome** | An environmental RF probe converting an ESP32 into a wireless scanner that streams Kalman-smoothed RSSI telemetry into a high-glow 3D Three.js WebGL dome via Web Serial. | ESP32 (C++), Web Serial, Three.js | [Open Module](./ESP32%20Network%20Dome%20View/) |
 
 ---
 
-## ⚙️ Monorepo Architecture & Principles
+## Monorepo Architecture & Principles
 
 Every module inside this laboratory is designed with clean architectural separation in mind:
 
@@ -36,7 +36,7 @@ Every module inside this laboratory is designed with clean architectural separat
 
 ---
 
-## 🚀 Getting Started Locally
+## Getting Started Locally
 
 To step inside the lab and run these simulations locally:
 
