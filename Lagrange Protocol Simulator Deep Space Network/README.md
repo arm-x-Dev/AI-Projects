@@ -1,4 +1,4 @@
-# 🛰️ Lagrange Protocol Simulator: Deep Space Network
+# Lagrange Protocol Simulator: Deep Space Network
 
 [![Platform: Vanilla JS](https://img.shields.io/badge/Platform-Vanilla%20JS-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
 [![Graphics: HTML5 Canvas](https://img.shields.io/badge/Graphics-HTML5%20Canvas-E34F26?style=for-the-badge&logo=html5&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API)
@@ -12,7 +12,7 @@ The interactive dashboard is built using zero-framework HTML5 Canvas, Vanilla CS
 
 ---
 
-## 🧭 Deep Space & ECE Nomenclature Dictionary
+## Deep Space & ECE Nomenclature Dictionary
 
 This simulation maps its visual space-themed elements directly to standard telemetry encoding, channel models, and mathematical interpolation terminology:
 
@@ -29,7 +29,7 @@ This simulation maps its visual space-themed elements directly to standard telem
 
 ---
 
-## 🧠 Engineering Core & Mathematical Model
+## Engineering Core & Mathematical Model
 
 ### 1. Polynomial Carrier Encoding
 In standard digital communication, cosmic ray strikes can corrupt bits, rendering raw streams unreadable. This simulator uses an algebraic redundancy protocol inspired by Reed-Solomon coding:
@@ -78,7 +78,7 @@ By calculating $L(0)$, the receiver extracts the original summed integer payload
 
 ---
 
-## 🛠️ Workspace & Browser Requirements
+## Workspace & Browser Requirements
 
 ### Software & Environment
 *   **Operating System:** Platform-agnostic (Windows, macOS, Linux, ChromeOS).
@@ -87,7 +87,7 @@ By calculating $L(0)$, the receiver extracts the original summed integer payload
 
 ---
 
-## 🚀 Step-by-Step Execution Guide
+## Step-by-Step Execution Guide
 
 ### Step 1: Payload Encoding & Grid Graphing
 1.  Open [index.html](file:///C:/Users/alokm/Downloads/AI-Projects-main/AI-Projects-main/Lagrange%20Protocol%20Simulator%20Deep%20Space%20Network/index.html) in your browser.
