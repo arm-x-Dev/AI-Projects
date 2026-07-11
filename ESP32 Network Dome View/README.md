@@ -1,4 +1,4 @@
-# 🛰️ ESP32 3D RF Propagation Grid & Signal Localization Dashboard
+# ESP32 3D RF Propagation Grid & Signal Localization Dashboard
 
 [![Hardware: ESP32](https://img.shields.io/badge/Hardware-ESP32-red?style=for-the-badge&logo=espressif&logoColor=white)](https://www.espressif.com/)
 [![Firmware: C++](https://img.shields.io/badge/Firmware-C%2B%2B-blue?style=for-the-badge&logo=c%2B%2B&logoColor=white)](https://isocpp.org/)
@@ -12,7 +12,7 @@ The frontend—built with vanilla JavaScript, WebGL via Three.js, and the native
 
 ---
 
-## 🧭 ECE Nomenclature Dictionary
+## ECE Nomenclature Dictionary
 
 To align the cyberpunk, high-glow visual interface with authentic Electronics and Communications Engineering (ECE) principles, the following design terminology is mapped directly to standard RF propagation and receiver concepts:
 
@@ -26,7 +26,7 @@ To align the cyberpunk, high-glow visual interface with authentic Electronics an
 
 ---
 
-## 🧠 Engineering Core
+## Engineering Core
 
 ### 1. Dynamic Kalman Filter Matrix
 Indoor environments are notoriously harsh for RF signals due to multipath propagation, fading, reflections, and shadowing. Raw RSSI (Received Signal Strength Indicator) values fluctuate erratically. To resolve this, the ESP32 microcontroller runs an inline matrix of 1D Kalman Filters.
@@ -67,7 +67,7 @@ Where:
 
 ---
 
-## 🛠️ Hardware & Workspace Requirements
+## Hardware & Workspace Requirements
 
 ### Hardware Components
 1.  **Microcontroller:** Any ESP32 development board (e.g., ESP32-WROOM-32D / 32E or ESP32-S3).
@@ -81,7 +81,7 @@ Where:
 
 ---
 
-## 🚀 Step-by-Step Installation & Deployment
+## Step-by-Step Installation & Deployment
 
 ### Step 1: Flashing the ESP32 Probe
 1.  Connect your ESP32 board to your computer using the data-capable USB cable.
