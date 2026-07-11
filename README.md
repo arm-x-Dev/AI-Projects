@@ -1,4 +1,4 @@
-# Master AI & Technical Hobby Lab ⚡
+# Master AI & Technical Hobby Lab
 
 Welcome to my centralized digital sandbox—a dedicated hub for independent engineering experiments, mathematical simulations, hardware-to-software pipelines, and interactive 3D WebGL dashboards.
 
